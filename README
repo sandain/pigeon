@@ -1,0 +1,64 @@
+Pigeon README
+
+
+REQUIREMENTS
+================================================================================
+
+Pigeon requires that Perl and various Perl libraries, in addition to the GD and
+ImageMagick graphics library be installed.
+
+Perl binaries for various platforms can be found here:
+
+  http://www.perl.org/get.html
+
+
+The source code for GD can be found here:
+
+  http://www.libgd.org
+
+The source code for ImageMagick can be found here:
+
+  http://www.imagemagick.org
+
+To download the Perl libraries, the easiest method is to use CPAN by issuing
+the following commands:
+
+  cpan
+
+  cpan> install Bio::SearchIO
+
+  cpan> install File::Temp
+
+  cpan> install GD
+
+  cpan> install GD::Graph
+
+  cpan> install Image::Magick
+
+  cpan> install IO::Uncompress::AnyUncompress
+
+  cpan> exit
+
+INSTALLATION
+================================================================================
+
+To build the Pigeon module, issue the commands:
+
+  perl Build.PL
+
+  ./Build
+
+  ./Build install
+
+The Pigeon module will be installed in your Perl modules directory.
+
+You can find scripts for using the module in the scripts/ directory.  The
+parse.pl script will parse through a BLAST output file for relevant data,
+and output it in a tab delimited form that Pigeon can interpret.
+
+
+
+
+
+
+
