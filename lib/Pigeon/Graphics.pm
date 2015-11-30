@@ -1990,10 +1990,16 @@ sub snp_location_graph {
     push @{$params{y_labels}}, '';
     foreach my $seq (@seqs) {
       my $label = $seq->{identifier};
-      if (defined $seq->{meta}{st}) {
-        $label .= sprintf "   ST: %2d", $seq->{meta}{st};
+      if (defined $seq->{meta}{'st'}) {
+        $label .= sprintf "  ST: %2d", $seq->{meta}{'st'};
       }
-      $label .= sprintf " - %2d SNPs", $counter->{$seq->{identifier}};
+      if (defined $seq->{meta}{'pe'}) {
+        $label .= sprintf "  PE: %2d", $seq->{meta}{'pe'};
+      }
+      if (defined $seq->{meta}{'mlst-pe'}) {
+        $label .= sprintf "  MLST-PE: %2d", $seq->{meta}{'mlst-pe'};
+      }
+      $label .= sprintf "  #SNP: %2d", $counter->{$seq->{identifier}};
       push @{$params{y_labels}}, $label;
     }
     push @{$params{y_labels}}, '';
