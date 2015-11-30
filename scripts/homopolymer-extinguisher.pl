@@ -7,8 +7,10 @@ use Bio::Seq;
 use Bio::SeqIO;
 use File::Temp;
 
+our $INT_MIN = -2147483648;
+
 # Grab command line input, return an error if not enough input provided.
-my $usage = "Usage: $0 <Reference Sequence File> <Raw Sequence File> <Output Sequence File> <Trim, default 1> <Remove Gaps, default 1>\n";
+my $usage = "Usage: $0 <Reference Sequence File> <Raw Sequence File> <Output Sequence File> <Trim, default 1> <Remove Gaps, default 1> <Remove Short, default 1>\n";
 die $usage unless (@ARGV >= 3);
 my ($refFile, $rawFile, $outputFile, $trim, $removeGaps, $removeShort) = @ARGV;
 
@@ -48,37 +50,49 @@ my $outSeqIO = new Bio::SeqIO (
 );
 
 while (my $raw = $rawSeqIO->next_seq) {
+  print "working on sequence " . $raw->id . "\n";
+
   # Find the best alignment between this raw sequence and the reference sequences.
-  my ($refSeq, $refSeqID, $rawSeq);
-  my $score = 0;
+  my $rawseq = $raw->seq;
+  $rawseq =~ s/-//g;
+
+  next unless (length $rawseq > 0);
+
+  my ($alignedRef, $refID, $alignedRaw);
+  my $score = $INT_MIN;
+
   # Check each possible combination of alignment.
   my @rawSeqs;
-  $rawSeqs[0] = $raw->seq;
+  $rawSeqs[0] = $rawseq;
   $rawSeqs[1] = reverse $rawSeqs[0];
   $rawSeqs[2] = compliment ($rawSeqs[0]);
   $rawSeqs[3] = reverse $rawSeqs[2];
   # Seek to the beginning of the reference sequence file.
   seek $refSeqIO->_fh, 0, 0;
   while (my $ref = $refSeqIO->next_seq) {
+
+    my $refseq = $ref->seq;
+    $refseq =~ s/-//g;
+
     foreach my $seq (@rawSeqs) {
       # Align the reference and raw sequences.
       my @align = align (
-        $ref->seq,
+        $refseq,
         $seq
       );
       if ($align[2] > $score) {
-        ($refSeq, $rawSeq, $score) = @align;
-        $refSeqID = $ref->id;
+        ($alignedRef, $alignedRaw, $score) = @align;
+        $refID = $ref->id;
       }
     }
   }
   my $seq;
   # Trim any nucleotides that created a gap in the reference sequence.
   if ($trim) {
-    $seq = trim ($refSeq, $rawSeq);
+    $seq = trim ($alignedRef, $alignedRaw);
   }
   else {
-    $seq = $rawSeq;
+    $seq = $alignedRaw;
   }
   # Keep any aligned and trimmed sequences that are the correct length,
   # and only those that have no gaps, unless requested.
@@ -87,11 +101,9 @@ while (my $raw = $rawSeqIO->next_seq) {
      not ($seq =~ /--+$/ and $removeShort) and
      not ($seq =~ /-/ and $removeGaps)
   ) {
-    # Remove any gaps that survived to this point.
-    $seq =~ s/-//g;
     my $temp = new Bio::Seq (
       -id   => $raw->id,
-      -desc => 'refseq=' . $refSeqID . ' ' . $raw->desc,
+      -desc => 'refseq=' . $refID . ' ' . $raw->desc,
       -seq  => $seq
     );
     $outSeqIO->write_seq ($temp);
@@ -130,7 +142,7 @@ sub align {
   # Remove the generated newick tree, it is unneeded.
   unlink "$inputFile.dnd";
   # Grab the alignment score.
-  if ($output =~ /Alignment Score (\d+)/ ) {
+  if ($output =~ /Alignment Score ([\-\d]+)/ ) {
     $score = $1;
   }
   # Create a new SeqIO object from the alignment output.
@@ -152,7 +164,7 @@ sub align {
 
 sub compliment {
   my $seq = shift;
-  $seq =~ tr/ACGTacgt/TGCAtgca/;
+  $seq =~ tr/ACGTNacgtn/TGCANtgcan/;
   return $seq;
 }
 
