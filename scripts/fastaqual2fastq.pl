@@ -9,10 +9,7 @@ use Bio::Seq::Quality;
 
 my $usage = "Usage: $0 <fasta input file> <quality input file> <fastq output file>\n";
 
-if (@ARGV != 3) {
-  print $usage;
-  exit;
-}
+die $usage if (@ARGV != 3);
 
 my ($fastaFile, $qualFile, $fastqFile) = @ARGV;
 
