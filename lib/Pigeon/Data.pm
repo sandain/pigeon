@@ -306,7 +306,6 @@ my %genome_size = (
 
   Title   : new
   Usage   : my $data = new Pigeon::Data(
-              type => 'text',
               metablast_file => 'metablast.txt',
               metagenome_file => 'metagenome.fasta',
               synteny_error => 0.3
