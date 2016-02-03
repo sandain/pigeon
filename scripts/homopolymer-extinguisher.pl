@@ -70,16 +70,11 @@ while (my $raw = $rawSeqIO->next_seq) {
   # Seek to the beginning of the reference sequence file.
   seek $refSeqIO->_fh, 0, 0;
   while (my $ref = $refSeqIO->next_seq) {
-
     my $refseq = $ref->seq;
     $refseq =~ s/-//g;
-
     foreach my $seq (@rawSeqs) {
       # Align the reference and raw sequences.
-      my @align = align (
-        $refseq,
-        $seq
-      );
+      my @align = align ($refseq, $seq);
       if ($align[2] > $score) {
         ($alignedRef, $alignedRaw, $score) = @align;
         $refID = $ref->id;
