@@ -38,7 +38,10 @@ while (my $seq = $dbIO->next_seq) {
   next if (not defined $count{$seq->seq});
   # Look for the barcode.
   my $barcode = 'unknown';
-  if ($seq->desc =~ /barcode_id=([\w\d]+)/) {
+  if ($seq->id =~ /([WS][123456][ABCDEFGHIJKL]?[0123456789A]?)_.*/) {
+    $barcode = $1;
+  }
+  elsif ($seq->desc =~ /barcode_id=([\w\d]+)/) {
     $barcode = $1;
   }
   elsif ($seq->desc =~ /barcode=([\w\d]+)/) {
@@ -47,7 +50,6 @@ while (my $seq = $dbIO->next_seq) {
   elsif ($seq->desc =~ /^[a-zA-Z_0-9-]+::(.*)/) {
     $barcode = $1;
   }
-print $seq->id . "\t" . $barcode . "\n";
 
   push @barcodes, $barcode if (not $barcode ~~ @barcodes);
   $count{$seq->seq}{$barcode} = 0 if (not defined $count{$seq->seq}{$barcode});
