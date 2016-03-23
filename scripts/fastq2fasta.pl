@@ -8,10 +8,10 @@ use Bio::SeqIO;
 
 ## Check command line argument.
 if (@ARGV == 0) {
-  die "Usage: $0 <fastq file name> <fasta file name>\n";
+  die "Usage: $0 <fastq file name> <fasta file name> <optional desc>\n";
 }
 
-my ($fastqFile, $fastaFile) = @ARGV;
+my ($fastqFile, $fastaFile, $desc) = @ARGV;
 
 # Make sure the input fastq file exists.
 if (! -e $fastqFile) {
@@ -32,7 +32,12 @@ my $fastaIO = new Bio::SeqIO (
 
 # Write each sequence in the fastq file to the fasta file.
 while (my $seq = $fastqIO->next_seq) {
-  $fastaIO->write_seq ($seq);
+  my $newSeq = new Bio::Seq (
+    -id   => $seq->id,
+    -seq  => $seq->seq,
+    -desc => (defined $desc ? $desc . " " : "") . $seq->desc
+  );
+  $fastaIO->write_seq ($newSeq);
 }
 
 # Close the SeqIO objects.
