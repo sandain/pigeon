@@ -1,6 +1,7 @@
 #! /usr/bin/perl
 
 use strict;
+use threads;
 use warnings;
 
 use Bio::Seq;
@@ -50,17 +51,13 @@ my $outSeqIO = new Bio::SeqIO (
 );
 
 while (my $raw = $rawSeqIO->next_seq) {
-  print "working on sequence " . $raw->id . "\n";
-
+  my @threads;
   # Find the best alignment between this raw sequence and the reference sequences.
   my $rawseq = $raw->seq;
   $rawseq =~ s/-//g;
-
   next unless (length $rawseq > 0);
-
   my ($alignedRef, $refID, $alignedRaw);
   my $score = $INT_MIN;
-
   # Check each possible combination of alignment.
   my @rawSeqs;
   $rawSeqs[0] = $rawseq;
@@ -73,12 +70,15 @@ while (my $raw = $rawSeqIO->next_seq) {
     my $refseq = $ref->seq;
     $refseq =~ s/-//g;
     foreach my $seq (@rawSeqs) {
-      # Align the reference and raw sequences.
-      my @align = align ($refseq, $seq);
-      if ($align[2] > $score) {
-        ($alignedRef, $alignedRaw, $score) = @align;
-        $refID = $ref->id;
-      }
+      # Run each alignment in its own thread.
+      push @threads, threads->create (\&align, $ref->id, $refseq, $seq);
+    }
+  }
+  # Figure out which reference provided the best alignment.
+  foreach my $thread (@threads) {
+    my @align = $thread->join ();
+    if ($align[3] > $score) {
+      ($refID, $alignedRef, $alignedRaw, $score) = @align;
     }
   }
   my $seq;
@@ -123,7 +123,7 @@ sub trim {
 }
 
 sub align {
-  my ($seqA, $seqB) = @_;
+  my ($id, $seqA, $seqB) = @_;
   my ($sequenceA, $sequenceB, $score); 
   # Create a temporary files for the alignment.
   my $inputFH = new File::Temp();
@@ -154,7 +154,7 @@ sub align {
       $sequenceB = $seq->seq;
     }
   }
-  return ($sequenceA, $sequenceB, $score);
+  return ($id, $sequenceA, $sequenceB, $score);
 }
 
 sub compliment {
