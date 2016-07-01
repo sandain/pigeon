@@ -7,109 +7,79 @@ use warnings;
 use Bio::Seq;
 use Bio::SeqIO;
 use File::Temp;
+use Thread::Queue;
 
 our $INT_MIN = -2147483648;
 
-# Grab command line input, return an error if not enough input provided.
-my $usage = "Usage: $0 <Reference Sequence File> <Raw Sequence File> <Output Sequence File> <Trim, default 1> <Remove Gaps, default 1> <Remove Short, default 1>\n";
+my $thread_limit = 20;
+
+my $usage = "Usage: $0 <Reference Sequences> <Raw Sequences> <Output File> " .
+  "<Trim, default 1> <Remove Gaps, default 1> <Remove Short, default 1>\n";
+
+# Return the usage statement if not enough command line input provided.
 die $usage unless (@ARGV >= 3);
-my ($refFile, $rawFile, $outputFile, $trim, $removeGaps, $removeShort) = @ARGV;
+
+# Grab the command line variables.
+my ($refFile, $rawFile, $outFile, $trim, $removeGaps, $removeShort) = @ARGV;
 
 # Check to make sure that CLUSTAL is installed.
 my $clustalBin = `which clustalw`;
 $clustalBin =~ s/[\r|\n]//g;
-die "Unable to find the executable for CLUSTAL, make sure that it is installed!\n" unless (-e $clustalBin);
+die "Unable to find the executable for CLUSTAL!\n" unless (-e $clustalBin);
 
-
-# Default trim, removeGaps, and removeShort to 1.
-if (not defined $trim or (defined $trim and not $trim == 0)) {
-  $trim = 1;
+sub checkArgument {
+  my ($arg, $vals) = @_;
+  my $val = $vals->[0];
+  if (defined $arg && $arg ~~ @{$vals}) {
+    $val = $arg;
+  }
+  elsif (defined $arg) {
+    die "Unrecognized argument value: $arg.\n$usage";
+  }
+  return $val;
 }
-if (not defined $removeGaps or (defined $removeGaps and not $removeGaps == 0)) {
-  $removeGaps = 1;
-}
-if (not defined $removeShort or (defined $removeShort and not $removeShort == 0)) {
-  $removeShort = 1;
-}
 
-# Grab the reference sequence.
-my $refSeqIO = new Bio::SeqIO (
-  -file   => '<' . $refFile,
-  -format => 'fasta'
-);
-
-# Grab the raw sequences.
-my $rawSeqIO = new Bio::SeqIO (
-  -file   => '<' . $rawFile,
-  -format => 'fasta'
-);
-
-# Create the output file.
-my $outSeqIO = new Bio::SeqIO (
-  -file   => '>' . $outputFile,
-  -format => 'fasta'
-);
-
-while (my $raw = $rawSeqIO->next_seq) {
-  my @threads;
-  # Find the best alignment between this raw sequence and the reference sequences.
-  my $rawseq = $raw->seq;
-  $rawseq =~ s/-//g;
-  next unless (length $rawseq > 0);
-  my ($alignedRef, $refID, $alignedRaw);
+sub bestAlign {
+  my ($raw, $refs) = @_;
+  my ($refID, $alignedRef, $alignedRaw);
   my $score = $INT_MIN;
   # Check each possible combination of alignment.
   my @rawSeqs;
-  $rawSeqs[0] = $rawseq;
+  $rawSeqs[0] = $raw->seq;
   $rawSeqs[1] = reverse $rawSeqs[0];
   $rawSeqs[2] = compliment ($rawSeqs[0]);
   $rawSeqs[3] = reverse $rawSeqs[2];
-  # Seek to the beginning of the reference sequence file.
-  seek $refSeqIO->_fh, 0, 0;
-  while (my $ref = $refSeqIO->next_seq) {
-    my $refseq = $ref->seq;
-    $refseq =~ s/-//g;
+  foreach my $ref (@{$refs}) {
     foreach my $seq (@rawSeqs) {
       # Run each alignment in its own thread.
-      push @threads, threads->create (\&align, $ref->id, $refseq, $seq);
+      my @align = align ($ref->id, $ref->seq, $seq);
+      if ($align[3] > $score) {
+        ($refID, $alignedRef, $alignedRaw, $score) = @align;
+      }
     }
   }
-  # Figure out which reference provided the best alignment.
-  foreach my $thread (@threads) {
-    my @align = $thread->join ();
-    if ($align[3] > $score) {
-      ($refID, $alignedRef, $alignedRaw, $score) = @align;
-    }
-  }
-  my $seq;
+  my $sequence;
   # Trim any nucleotides that created a gap in the reference sequence.
   if ($trim) {
-    $seq = trim ($alignedRef, $alignedRaw);
+    $sequence = trim ($alignedRef, $alignedRaw);
   }
   else {
-    $seq = $alignedRaw;
+    $sequence = $alignedRaw;
   }
   # Keep any aligned and trimmed sequences that are the correct length,
   # and only those that have no gaps, unless requested.
   if (
-     not ($seq =~ /^--+/ and $removeShort) and 
-     not ($seq =~ /--+$/ and $removeShort) and
-     not ($seq =~ /-/ and $removeGaps)
+     not ($sequence =~ /^--+/ and $removeShort) and
+     not ($sequence =~ /--+$/ and $removeShort) and
+     not ($sequence =~ /-/ and $removeGaps)
   ) {
-    my $temp = new Bio::Seq (
+    return new Bio::Seq (
       -id   => $raw->id,
       -desc => 'refseq=' . $refID . ' ' . $raw->desc,
-      -seq  => $seq
+      -seq  => $sequence
     );
-    $outSeqIO->write_seq ($temp);
   }
 }
-
-# Close the SeqIO objects.
-$refSeqIO->close;
-$rawSeqIO->close;
-$outSeqIO->close;
-
 
 sub trim {
   my ($seqA, $seqB) = @_;
@@ -163,3 +133,102 @@ sub compliment {
   return $seq;
 }
 
+# Default trim, removeGaps, and removeShort to 1.
+my $bool = [1, 0];
+$trim = checkArgument ($trim, $bool);
+$removeGaps = checkArgument ($removeGaps, $bool);
+$removeShort = checkArgument ($removeShort, $bool);
+
+# Load the reference sequences file.
+my $refSeqIO = new Bio::SeqIO (
+  -file   => '<' . $refFile,
+  -format => 'fasta'
+);
+my @refs;
+while (my $ref = $refSeqIO->next_seq) {
+  my $seq = $ref->seq;
+  $seq =~ s/-//g;
+  next unless (length $seq > 0);
+  my $refseq = new Bio::Seq (
+    -id   => $ref->id,
+    -desc => $ref->desc,
+    -seq  => $seq
+  );
+  push @refs, $refseq;
+}
+# Close the reference sequences file.
+$refSeqIO->close;
+
+# Each thread gets its own temporary output file.
+my @files = map { $outFile . sprintf (".%02d", $_) } 1..$thread_limit;
+
+# Create a thread queue.
+my $queue = new Thread::Queue ();
+my @threads = map {
+  threads->create (
+    sub {
+      # Open this thread's temporary output file.
+      my $outSeqIO = new Bio::SeqIO (
+        -file   => '>' . $files[$_-1],
+        -format => 'fasta'
+      );
+      # Grab a sequence from the queue.
+      while (my $item = $queue->dequeue ()) {
+        return unless (defined $item);
+        # Find the best alignment between the sequence from the queue with the
+        # reference sequences.
+        my ($align) = bestAlign ($item, \@refs);
+        return unless (defined $align);
+        # Output the alignment to this thread's temporary output file.
+        $outSeqIO->write_seq ($align);
+      }
+      # Close this thread's temporary output file.
+      $outSeqIO->close ();
+    }
+  );
+} 1..$thread_limit;
+
+# Load the raw sequences file.
+my $rawSeqIO = new Bio::SeqIO (
+  -file   => '<' . $rawFile,
+  -format => 'fasta'
+);
+while (my $raw = $rawSeqIO->next_seq) {
+  my $seq = $raw->seq;
+  $seq =~ s/-//g;
+  next unless (length $seq > 0);
+  my $rawseq = new Bio::Seq (
+    -id   => $raw->id,
+    -desc => $raw->desc,
+    -seq  => $seq
+  );
+  while ($queue->pending () > 2 * $thread_limit) {
+    sleep 1;
+  }
+  $queue->enqueue ($rawseq);
+}
+# Close the raw sequences file.
+$rawSeqIO->close ();
+
+# Signal the end of the queue.
+$queue->enqueue (undef) for 1..$thread_limit;
+
+# Wait for the threads to finish.
+foreach my $thread (@threads) {
+  $thread->join ();
+}
+
+# Merge the temporary output files.
+my ($inFH, $outFH);
+open $outFH, '>', $outFile or die "Unable to write to $outFile: $!\n";
+foreach my $file (@files) {
+  open $inFH, '<', $file or die "Unable to read from $file: $!\n";
+  while (my $line = <$inFH>) {
+    print $outFH $line;
+  }
+  close $inFH;
+}
+close $outFH;
+
+# Delete the temporary output files.
+unlink @files;
