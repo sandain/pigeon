@@ -47,7 +47,7 @@ sub bestAlign {
   my @rawSeqs;
   $rawSeqs[0] = $raw->seq;
   $rawSeqs[1] = reverse $rawSeqs[0];
-  $rawSeqs[2] = compliment ($rawSeqs[0]);
+  $rawSeqs[2] = complement ($rawSeqs[0]);
   $rawSeqs[3] = reverse $rawSeqs[2];
   foreach my $ref (@{$refs}) {
     foreach my $seq (@rawSeqs) {
@@ -127,7 +127,7 @@ sub align {
   return ($id, $sequenceA, $sequenceB, $score);
 }
 
-sub compliment {
+sub complement {
   my $seq = shift;
   $seq =~ tr/ACGTNacgtn/TGCANtgcan/;
   return $seq;
