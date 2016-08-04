@@ -24,22 +24,10 @@ my $outputIO = new Bio::SeqIO (
   -format => 'fasta'
 );
 
-
-while (my $inputSeq = $inputIO->next_seq) {
-  my $seq = reverse lc $inputSeq->seq;
-  # Make sure we are only working with DNA.
-  if ($seq =~ /([^acgt])/) {
-    die "Unrecognized character '" . $1 . "' in sequence '" . $inputSeq->id . "'\n";
-  }
-  # Complement the sequence.
-  $seq =~ tr/acgt/tgca/;
-  # Output the sequence.
-  my $outputSeq = new Bio::Seq (
-    -id   => $inputSeq->id,
-    -desc => $inputSeq->desc,
-    -seq  => $seq
-  );
-  $outputIO->write_seq ($outputSeq);
+while (my $seq = $inputIO->next_seq) {
+  die "Sequence alphabet not recognized" unless ($seq->alphabet =~ /[dr]na/);
+  # Output the reverse complement of the sequence.
+  $outputIO->write_seq ($seq->revcom);
 }
 
 $inputIO->close;
