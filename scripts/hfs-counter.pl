@@ -41,10 +41,10 @@ while (my $seq = $dbIO->next_seq) {
   if ($seq->id =~ /([WS][123456][ABCDEFGHIJKL]?[0123456789A]?)_.*/) {
     $barcode = $1;
   }
-  elsif ($seq->desc =~ /barcode_id=([\w\d]+)/) {
+  elsif ($seq->desc =~ /barcode_id=(\S+)/) {
     $barcode = $1;
   }
-  elsif ($seq->desc =~ /barcode=([\w\d]+)/) {
+  elsif ($seq->desc =~ /barcode=(\S+)/) {
     $barcode = $1;
   }
   elsif ($seq->desc =~ /^[a-zA-Z_0-9-]+::(.*)/) {
