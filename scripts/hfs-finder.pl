@@ -14,9 +14,9 @@ die $usage if (@ARGV < 2);
 my ($inputFile, $outputFile, $hfsCutoff, $lfsCutoff) = @ARGV;
 
 # A HFS cutoff of 0 is the same as a cutoff of 1.
-$hfsCutoff = 0 if (not defined $hfsCutoff);
+$hfsCutoff = 0 if (not defined $hfsCutoff or $hfsCutoff eq '');
 # Define the LFS cutoff as a really high number by default.
-$lfsCutoff = ~0 if (not defined $lfsCutoff or $hfsCutoff == 0);
+$lfsCutoff = ~0 if (not defined $lfsCutoff or $lfsCutoff eq '' or $hfsCutoff == 0);
 
 # Make sure the input fasta file exists.
 die "Input file not found!\n" if (! -e $inputFile);
@@ -26,6 +26,8 @@ my $inputIO = new Bio::SeqIO (
   -file   => '<' . $inputFile,
   -format => 'fasta'
 );
+
+# Load each genotype.
 my %genotypes;
 while (my $seq = $inputIO->next_seq) {
   # Ignore any sequences with ambiguous bases.
@@ -41,6 +43,8 @@ my $outputIO = new Bio::SeqIO (
   -file   => '>' . $outputFile,
   -format => 'fasta'
 );
+
+# Output arepresentative sequence of each genotype.
 my $hfsNum = 0;
 my $lfsNum = 0;
 foreach my $seq (sort { $genotypes{$b} <=> $genotypes{$a} } keys %genotypes) {
