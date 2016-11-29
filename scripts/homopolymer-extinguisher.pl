@@ -27,16 +27,15 @@ my $clustalBin = `which clustalw`;
 $clustalBin =~ s/[\r|\n]//g;
 die "Unable to find the executable for CLUSTAL!\n" unless (-e $clustalBin);
 
-sub checkArgument {
-  my ($arg, $vals) = @_;
-  my $val = $vals->[0];
-  if (defined $arg && $arg ~~ @{$vals}) {
-    $val = $arg;
-  }
-  elsif (defined $arg) {
-    die "Unrecognized argument value: $arg.\n$usage";
-  }
-  return $val;
+# Default trim, removeGaps, and removeShort to 1.
+if (not defined $trim or (defined $trim and not $trim == 0)) {
+  $trim = 1;
+}
+if (not defined $removeGaps or (defined $removeGaps and not $removeGaps == 0)) {
+  $removeGaps = 1;
+}
+if (not defined $removeShort or (defined $removeShort and not $removeShort == 0)) {
+  $removeShort = 1;
 }
 
 sub bestAlign {
@@ -73,11 +72,9 @@ sub bestAlign {
      not ($sequence =~ /--+$/ and $removeShort) and
      not ($sequence =~ /-/ and $removeGaps)
   ) {
-    return new Bio::Seq (
-      -id   => $raw->id,
-      -desc => 'refseq=' . $refID . ' ' . $raw->desc,
-      -seq  => $sequence
-    );
+    my $desc = 'refseq=' . $refID;
+    $desc .= ' ' . $raw->desc if (defined $raw->desc);
+    return ($raw->id, $desc, $sequence);
   }
 }
 
@@ -133,12 +130,6 @@ sub complement {
   return $seq;
 }
 
-# Default trim, removeGaps, and removeShort to 1.
-my $bool = [1, 0];
-$trim = checkArgument ($trim, $bool);
-$removeGaps = checkArgument ($removeGaps, $bool);
-$removeShort = checkArgument ($removeShort, $bool);
-
 # Load the reference sequences file.
 my $refSeqIO = new Bio::SeqIO (
   -file   => '<' . $refFile,
@@ -159,36 +150,30 @@ while (my $ref = $refSeqIO->next_seq) {
 # Close the reference sequences file.
 $refSeqIO->close;
 
-# Each thread gets its own temporary output file.
-my @files = map { $outFile . sprintf (".%02d", $_) } 1..$thread_limit;
-
 # Create a thread queue.
 my $queue = new Thread::Queue ();
+
+# Limit the size of the thread queue.
+$queue->limit = 2 * $thread_limit;
+
 my @threads = map {
   threads->create (
     sub {
-      # Open this thread's temporary output file.
-      my $outSeqIO = new Bio::SeqIO (
-        -file   => '>' . $files[$_-1],
-        -format => 'fasta'
-      );
+      my @aligned = ();
       # Grab a sequence from the queue.
-      while (my $item = $queue->dequeue ()) {
-        return unless (defined $item);
+      while (defined (my $item = $queue->dequeue ())) {
         # Find the best alignment between the sequence from the queue with the
         # reference sequences.
-        my ($align) = bestAlign ($item, \@refs);
-        return unless (defined $align);
-        # Output the alignment to this thread's temporary output file.
-        $outSeqIO->write_seq ($align);
+        my ($id, $desc, $seq) = bestAlign ($item, \@refs);
+        next unless (defined $seq);
+        push @aligned, sprintf ">%s %s\n%s\n", $id, $desc, $seq;
       }
-      # Close this thread's temporary output file.
-      $outSeqIO->close ();
+      return @aligned;
     }
   );
 } 1..$thread_limit;
 
-# Load the raw sequences file.
+# Add each sequence in the raw sequences file to the thread queue.
 my $rawSeqIO = new Bio::SeqIO (
   -file   => '<' . $rawFile,
   -format => 'fasta'
@@ -202,33 +187,19 @@ while (my $raw = $rawSeqIO->next_seq) {
     -desc => $raw->desc,
     -seq  => $seq
   );
-  while ($queue->pending () > 2 * $thread_limit) {
-    sleep 1;
-  }
   $queue->enqueue ($rawseq);
 }
-# Close the raw sequences file.
 $rawSeqIO->close ();
 
-# Signal the end of the queue.
-$queue->enqueue (undef) for 1..$thread_limit;
+# Signal the end of the thread queue.
+$queue->end;
 
-# Wait for the threads to finish.
+# Write the aligned sequences to the output file.
+open OUTPUT, '>' . $outFile or die "Unable to open file for output: $!\n";
 foreach my $thread (@threads) {
-  $thread->join ();
-}
-
-# Merge the temporary output files.
-my ($inFH, $outFH);
-open $outFH, '>', $outFile or die "Unable to write to $outFile: $!\n";
-foreach my $file (@files) {
-  open $inFH, '<', $file or die "Unable to read from $file: $!\n";
-  while (my $line = <$inFH>) {
-    print $outFH $line;
+  my @aligned = $thread->join ();
+  foreach my $seq (@aligned) {
+    print OUTPUT $seq;
   }
-  close $inFH;
 }
-close $outFH;
-
-# Delete the temporary output files.
-unlink @files;
+close OUTPUT;
