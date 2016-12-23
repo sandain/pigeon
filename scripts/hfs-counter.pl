@@ -47,10 +47,9 @@ while (my $seq = $dbIO->next_seq) {
   elsif ($seq->desc =~ /barcode=(\S+)/) {
     $barcode = $1;
   }
-  elsif ($seq->desc =~ /^[a-zA-Z_0-9-]+::(.*)/) {
+  elsif ($seq->id =~ /^([a-zA-Z_0-9-]+)::.*/) {
     $barcode = $1;
   }
-
   push @barcodes, $barcode if (not $barcode ~~ @barcodes);
   $count{$seq->seq}{$barcode} = 0 if (not defined $count{$seq->seq}{$barcode});
   $count{$seq->seq}{$barcode} ++;
