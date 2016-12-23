@@ -9,7 +9,7 @@ use Bio::SeqIO;
 
 my $usage = "Usage: $0 <fasta file> <barcode sequence> <output file>\n";
 
-die $usage if (@ARGV == 0);
+die $usage if (@ARGV != 3);
 
 my ($file, $barcode, $output) = @ARGV;
 
