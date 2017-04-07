@@ -43,7 +43,7 @@ while (my $line = <INPUT>) {
     my $y2 = $5 + $yOffset;
     print OUTPUT "$1<line x1=\"$x1\" y1=\"$y1\" x2=\"$x2\" y2=\"$y2\"$6\n";
   }
-  elsif ($line =~ /(.*)<path\s+(.*)d=\"([\w\s\,\-]+)\"(.*)\/>/) {
+  elsif ($line =~ /(.*)<path\s+(.*)d=\"([\w\s\.\,\-]+)\"(.*)\/>/) {
     my $path = "";
     foreach my $cmd (split /\s+/, $3) {
       if ($cmd =~ /[Z]/i) {
