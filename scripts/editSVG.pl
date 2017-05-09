@@ -16,12 +16,12 @@ open OUTPUT, '>' . $outputFile or die "Error: unable to write to file: $!\n";
 while (my $line = <INPUT>) {
   $line =~ s/[\r\n]//g;
 
-  if ($line =~ /(.*)rotate\(-90 ([\d.]+),([\d.]+)\)(.*)/) {
+  if ($line =~ /(.*)rotate\(-90\s+([\d.]+),([\d.]+)\)(.*)/) {
     my $x = $2 + $xOffset;
     my $y = $3 + $yOffset;
     $line = "$1rotate(-90 $x,$y)$4";
   }
-  if ($line =~ /(.*)translate\(([\d.]+),([\d.]+)\) rotate\(-90\) translate\(-[\d.]+,-[\d.]+\)(.*)/) {
+  if ($line =~ /(.*)translate\(([\d.]+),([\d.]+)\)\s+rotate\(-90\)\s+translate\(-[\d.]+,-[\d.]+\)(.*)/) {
     my $x = $2 + $xOffset;
     my $y = $3 + $yOffset;
     $line = "$1rotate(-90 $x,$y)$4";
