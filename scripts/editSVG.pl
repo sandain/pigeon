@@ -10,57 +10,73 @@ my ($inputFile, $outputFile, $xOffset, $yOffset) = @ARGV;
 die $usage unless (@ARGV >= 2);
 die $usage unless (-e $inputFile);
 
+my $input;
+{
+  local $/ = undef;
+  open INPUT, '<' . $inputFile or die "Error: unable to open file: $!\n";
+  binmode INPUT;
+  $input = <INPUT>;
+  close INPUT;
+}
 
-open INPUT, '<' . $inputFile or die "Error: unable to open file: $!\n";
+# Remove excess line returns from input.
+$input =~ s/[\r]//g;
+$input =~ s/([\"\w]+)\n\s*(\w+)/$1 $2/g;
+
 open OUTPUT, '>' . $outputFile or die "Error: unable to write to file: $!\n";
-while (my $line = <INPUT>) {
-  $line =~ s/[\r\n]//g;
+foreach my $line (split /\n/, $input) {
 
-  if ($line =~ /(.*)rotate\(-90\s+([\d.]+),([\d.]+)\)(.*)/) {
+  # Add missing commas.
+  $line =~ s/\s+(\-?\d+\.?\d*)\s+(\-?\d+\.?\d*)/ $1,$2/g;
+
+  # Simplify rotate.
+  if ($line =~ /(.*)rotate\(-90\s+([\d\.]+),([\d\.]+)\)(.*)/) {
     my $x = $2 + $xOffset;
     my $y = $3 + $yOffset;
     $line = "$1rotate(-90 $x,$y)$4";
   }
-  if ($line =~ /(.*)translate\(([\d.]+),([\d.]+)\)\s+rotate\(-90\)\s+translate\(-[\d.]+,-[\d.]+\)(.*)/) {
+  if ($line =~ /(.*)translate\(([\d\.]+),([\d\.]+)\)\s+rotate\(-90\)\s+translate\(-[\d\.]+,-[\d\.]+\)(.*)/) {
     my $x = $2 + $xOffset;
     my $y = $3 + $yOffset;
     $line = "$1rotate(-90 $x,$y)$4";
   }
-  if ($line =~ /(.*)<text\s+x="([\d.]+)"\s+y="([\d.]+)"(.*)/) {
+  # Capture text elements.
+  if ($line =~ /(.*)<text\s+x="([\d\.]+)"\s+y="([\d\.]+)"(.*)/) {
     my $x = $2 + $xOffset;
     my $y = $3 + $yOffset;
     print OUTPUT "$1<text x=\"$x\" y=\"$y\"$4\n";
   }
-  elsif ($line =~ /(.*)<tspan\s+(.*)x=\"([\d.]+)\"\s+y=\"([\d.]+)\"(.*)/) {
+  # Capture tspan elements.
+  elsif ($line =~ /(.*)<tspan\s*(.*\s+)x=\"([\d\.]+)\"\s+y=\"([\d\.]+)\"(.*)/) {
     my $x = $3 + $xOffset;
     my $y = $4 + $yOffset;
     print OUTPUT "$1<tspan $2x=\"$x\" y=\"$y\"$5\n";
   }
-  elsif ($line =~ /(.*)<line\s+x1="([\d.]+)"\s+y1="([\d.]+)"\s+x2="([\d.]+)"\s+y2="([\d.]+)"(.*)/) {
+  # Capture line elements.
+  elsif ($line =~ /(.*)<line\s+x1="([\d\.]+)"\s+y1="([\d\.]+)"\s+x2="([\d\.]+)"\s+y2="([\d\.]+)"(.*)/) {
     my $x1 = $2 + $xOffset;
     my $y1 = $3 + $yOffset;
     my $x2 = $4 + $xOffset;
     my $y2 = $5 + $yOffset;
     print OUTPUT "$1<line x1=\"$x1\" y1=\"$y1\" x2=\"$x2\" y2=\"$y2\"$6\n";
   }
-  elsif ($line =~ /(.*)<path\s+(.*)d=\"([\w\s\.\,\-]+)\"(.*)\/>/) {
-    my $path = "";
+  # Capture path elements.
+  elsif ($line =~ /(.*)<path\s*(.*\s+)d=\"([\w\s\.\,\-]+)\"(.*)\/>/) {
+    my @path;
     foreach my $cmd (split /\s+/, $3) {
-      if ($cmd =~ /[Z]/i) {
-        $path .= $cmd;
-      }
-      elsif ($cmd =~ /([\d.]+),([\d.]+)/) {
+      if ($cmd =~ /([\d\.\-]+),([\d\.\-]+)/) {
         my $x = $1 + $xOffset;
         my $y = $2 + $yOffset;
-        $path .= $x . ',' . $y . ' ';
+        push @path, $x . ',' . $y;
       }
       else {
-        $path .= $cmd . ' ';
+        push @path, $cmd;
       }
     }
-    print OUTPUT "$1<path $2d=\"$path\"$4\/>\n";
+    printf OUTPUT "%s<path %sd=\"%s\"%s\/>\n", $1, $2, join (' ', @path), $4;
   }
-  elsif ($line =~ /(.*)<rect\s+(.*)x=\"([\d.]+)\"\s+y=\"([\d.]+)\"\s+width=\"([\d.]+)\"\s+height=\"([\d.]+)\"(.*)/) {
+  # Capture rect elements.
+  elsif ($line =~ /(.*)<rect\s*(.*\s+)x=\"([\d\.]+)\"\s+y=\"([\d\.]+)\"\s+width=\"([\d\.]+)\"\s+height=\"([\d\.]+)\"(.*)/) {
     my $x1 = $3 + $xOffset;
     my $y1 = $4 + $yOffset;
     my $x2 = $x1 + $5;
@@ -68,9 +84,14 @@ while (my $line = <INPUT>) {
     my $path = "M $x1,$y1 L $x2,$y1 $x2,$y2 $x1,$y2 Z";
     print OUTPUT "$1<path $2d=\"$path\"$7\n";
   }
+  # Capture circle elements.
+  elsif ($line =~ /(.*)<circle(.*\s+)cx="([\d\.]+)"\s+cy="([\d\.]+)"\s+r="([\d\.]+)"(.*)/) {
+    my $x = $3 + $xOffset;
+    my $y = $4 + $yOffset;
+    print OUTPUT "$1<circle$2cx=\"$x\" cy=\"$y\" r=\"$5\"$6\n";
+  }
   else {
     print OUTPUT "$line\n";
   }
 }
-close INPUT;
 close OUTPUT;
