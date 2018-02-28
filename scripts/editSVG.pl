@@ -28,7 +28,24 @@ foreach my $line (split /\n/, $input) {
 
   # Add missing commas.
   $line =~ s/\s+(\-?\d+\.?\d*)\s+(\-?\d+\.?\d*)/ $1,$2/g;
-
+  # Translate rgb colors to hex colors.
+  if ($line =~ /(.*)rgb\(([\d\.\%]+),([\d\.\%]+),([\d\.\%]+)\)(.*)/) {
+    my $before = $1;
+    my $r = $2;
+    my $g = $3;
+    my $b = $4;
+    my $after = $5;
+    # Check for percantages and convert to an int.
+    if ($r =~ /([\d\.]+)\%/) { $r = int ($1 * 255 + 0.5); }
+    if ($g =~ /([\d\.]+)\%/) { $g = int ($1 * 255 + 0.5); }
+    if ($b =~ /([\d\.]+)\%/) { $b = int ($1 * 255 + 0.5); }
+    # Convert int to hex.
+    $r = sprintf "%02x", $r;
+    $g = sprintf "%02x", $g;
+    $b = sprintf "%02x", $b;
+    # Create line with translated hex colors.
+    $line = $before . '#' . $r . $g . $b . $after;
+  }
   # Simplify rotate.
   if ($line =~ /(.*)rotate\(-90\s+([\d\.]+),([\d\.]+)\)(.*)/) {
     my $x = $2 + $xOffset;
