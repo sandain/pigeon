@@ -80,8 +80,11 @@ foreach my $line (split /\n/, $input) {
   # Capture path elements.
   elsif ($line =~ /(.*)<path\s+(.*\s*)d=\"([\w\s\.\,\-]+)\"(.*)\/>/) {
     my @path;
+    my $relative = 0;
     foreach my $cmd (split /\s+/, $3) {
-      if ($cmd =~ /([\d\.\-]+),([\d\.\-]+)/) {
+      $relative = 1 if ($cmd =~ /[mlc]/);
+      $relative = 0 if ($cmd =~ /[MLC]/);
+      if ($cmd =~ /([\d\.\-]+),([\d\.\-]+)/ && ! $relative) {
         my $x = $1 + $xOffset;
         my $y = $2 + $yOffset;
         push @path, $x . ',' . $y;
