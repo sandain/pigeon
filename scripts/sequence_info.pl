@@ -6,6 +6,9 @@ use warnings;
 use POSIX;
 
 use Bio::SeqIO;
+use IO::Uncompress::Gunzip;
+use IO::Uncompress::Bunzip2;
+use FileHandle;
 
 sub round {
   my $number = shift;
@@ -14,38 +17,38 @@ sub round {
 
 my $usage = "Usage: $0 <sequence file> <cutoff>\n";
 
-if (@ARGV == 0) {
-  print $usage;
-  exit;
-}
+die $usage unless (@ARGV >= 1);
 
 my $file = $ARGV[0];
 my $cutoff = $ARGV[1];
 
-# Handle input files that are compressed with gzip.
+$cutoff = 0 if (not defined $cutoff);
+
+# Handle sequence files that are compressed with gzip or bzip2.
+my $fh;
 if ($file =~ /\.t?gz/) {
-  $file = "gunzip -c $file |";
+  $fh = new IO::Uncompress::Gunzip ($file);
+}
+elsif ($file =~ /\.t?bz2/) {
+  $fh = new IO::Uncompress::Bunzip2 ($file);
+}
+else {
+  $fh = new FileHandle ($file);
 }
 
-# Handle input files that are compressed with bzip2.
-if ($file =~ /\.t?bz2?/) {
-  $file = "bunzip2 -c $file |";
-}
-
-if (not defined $cutoff) {
-  $cutoff = 0;
-}
-
+# Attempt to detect the format of the sequence file.
 my $format = "fasta";
 $format = "fastq" if ($file =~ /fastq/);
 
-my $seqIO = new Bio::SeqIO (-file => $file, -format => $format);
+my $seqIO = new Bio::SeqIO (
+  -fh   => $fh,
+  -format => $format
+);
 
 my %counter;
 my $nucCounter = 0;
 
 my @lengths;
-
 
 while (my $seq = $seqIO->next_seq) {
   my $sequence = uc $seq->seq;
