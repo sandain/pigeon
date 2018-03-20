@@ -3,12 +3,17 @@
 use strict;
 use warnings;
 
-my $usage = "Usage: $0 <Input File> <Output File> <X Offset> <Y Offset>\n";
+my $usage = "Usage: $0 <Input File> <Output File> <X Offset> <Y Offset> <X Scale> <Y Scale>\n";
 
-my ($inputFile, $outputFile, $xOffset, $yOffset) = @ARGV;
+my ($inputFile, $outputFile, $xOffset, $yOffset, $xScale, $yScale) = @ARGV;
 
 die $usage unless (@ARGV >= 2);
 die $usage unless (-e $inputFile);
+
+$xOffset = 0 if (not defined $xOffset);
+$yOffset = 0 if (not defined $yOffset);
+$xScale = 1 if (not defined $xScale);
+$yScale = 1 if (not defined $yScale);
 
 my $input;
 {
@@ -36,9 +41,9 @@ foreach my $line (split /\n/, $input) {
     my $b = $4;
     my $after = $5;
     # Check for percantages and convert to an int.
-    if ($r =~ /([\d\.]+)\%/) { $r = int ($1 * 255 + 0.5); }
-    if ($g =~ /([\d\.]+)\%/) { $g = int ($1 * 255 + 0.5); }
-    if ($b =~ /([\d\.]+)\%/) { $b = int ($1 * 255 + 0.5); }
+    if ($r =~ /([\d\.]+)\%/) { $r = int ($1 / 100 * 255 + 0.5); }
+    if ($g =~ /([\d\.]+)\%/) { $g = int ($1 / 100 * 255 + 0.5); }
+    if ($b =~ /([\d\.]+)\%/) { $b = int ($1 / 100 * 255 + 0.5); }
     # Convert int to hex.
     $r = sprintf "%02x", $r;
     $g = sprintf "%02x", $g;
@@ -48,33 +53,33 @@ foreach my $line (split /\n/, $input) {
   }
   # Simplify rotate.
   if ($line =~ /(.*)rotate\(-90\s+([\d\.]+),([\d\.]+)\)(.*)/) {
-    my $x = $2 + $xOffset;
-    my $y = $3 + $yOffset;
+    my $x = $2 * $xScale + $xOffset;
+    my $y = $3 * $yScale + $yOffset;
     $line = "$1rotate(-90 $x,$y)$4";
   }
   if ($line =~ /(.*)translate\(([\d\.]+),([\d\.]+)\)\s+rotate\(-90\)\s+translate\(-[\d\.]+,-[\d\.]+\)(.*)/) {
-    my $x = $2 + $xOffset;
-    my $y = $3 + $yOffset;
+    my $x = $2 * $xScale + $xOffset;
+    my $y = $3 * $yScale + $yOffset;
     $line = "$1rotate(-90 $x,$y)$4";
   }
   # Capture text elements.
   if ($line =~ /(.*)<text\s+x="([\d\.]+)"\s+y="([\d\.]+)"(.*)/) {
-    my $x = $2 + $xOffset;
-    my $y = $3 + $yOffset;
+    my $x = $2 * $xScale + $xOffset;
+    my $y = $3 * $yScale + $yOffset;
     print OUTPUT "$1<text x=\"$x\" y=\"$y\"$4\n";
   }
   # Capture tspan elements.
   elsif ($line =~ /(.*)<tspan\s*(.*\s+)x=\"([\d\.]+)\"\s+y=\"([\d\.]+)\"(.*)/) {
-    my $x = $3 + $xOffset;
-    my $y = $4 + $yOffset;
+    my $x = $3 * $xScale + $xOffset;
+    my $y = $4 * $yScale + $yOffset;
     print OUTPUT "$1<tspan $2x=\"$x\" y=\"$y\"$5\n";
   }
   # Capture line elements.
   elsif ($line =~ /(.*)<line\s+x1="([\d\.]+)"\s+y1="([\d\.]+)"\s+x2="([\d\.]+)"\s+y2="([\d\.]+)"(.*)/) {
-    my $x1 = $2 + $xOffset;
-    my $y1 = $3 + $yOffset;
-    my $x2 = $4 + $xOffset;
-    my $y2 = $5 + $yOffset;
+    my $x1 = $2 * $xScale + $xOffset;
+    my $y1 = $3 * $yScale + $yOffset;
+    my $x2 = $4 * $xScale + $xOffset;
+    my $y2 = $5 * $yScale + $yOffset;
     print OUTPUT "$1<line x1=\"$x1\" y1=\"$y1\" x2=\"$x2\" y2=\"$y2\"$6\n";
   }
   # Capture path elements.
@@ -85,8 +90,8 @@ foreach my $line (split /\n/, $input) {
       $relative = 1 if ($cmd =~ /[mlc]/);
       $relative = 0 if ($cmd =~ /[MLC]/);
       if ($cmd =~ /([\d\.\-]+),([\d\.\-]+)/ && ! $relative) {
-        my $x = $1 + $xOffset;
-        my $y = $2 + $yOffset;
+        my $x = $1 * $xScale + $xOffset;
+        my $y = $2 * $yScale + $yOffset;
         push @path, $x . ',' . $y;
       }
       else {
@@ -97,8 +102,8 @@ foreach my $line (split /\n/, $input) {
   }
   # Capture rect elements.
   elsif ($line =~ /(.*)<rect\s*(.*\s+)x=\"([\d\.]+)\"\s+y=\"([\d\.]+)\"\s+width=\"([\d\.]+)\"\s+height=\"([\d\.]+)\"(.*)/) {
-    my $x1 = $3 + $xOffset;
-    my $y1 = $4 + $yOffset;
+    my $x1 = $3 * $xScale + $xOffset;
+    my $y1 = $4 * $yScale + $yOffset;
     my $x2 = $x1 + $5;
     my $y2 = $y1 + $6;
     my $path = "M $x1,$y1 L $x2,$y1 $x2,$y2 $x1,$y2 Z";
@@ -106,8 +111,8 @@ foreach my $line (split /\n/, $input) {
   }
   # Capture circle elements.
   elsif ($line =~ /(.*)<circle(.*\s+)cx="([\d\.]+)"\s+cy="([\d\.]+)"\s+r="([\d\.]+)"(.*)/) {
-    my $x = $3 + $xOffset;
-    my $y = $4 + $yOffset;
+    my $x = $3 * $xScale + $xOffset;
+    my $y = $4 * $yScale + $yOffset;
     print OUTPUT "$1<circle$2cx=\"$x\" cy=\"$y\" r=\"$5\"$6\n";
   }
   else {
