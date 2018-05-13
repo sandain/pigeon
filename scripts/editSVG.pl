@@ -26,8 +26,8 @@ my $input;
 
 # Remove excess line returns from input.
 $input =~ s/[\r]//g;
+$input =~ s/"\n\s*(\w+)/" $1/g;
 $input =~ s/([\"\w]+)\n\s*(\w+)/$1 $2/g;
-
 open OUTPUT, '>' . $outputFile or die "Error: unable to write to file: $!\n";
 foreach my $line (split /\n/, $input) {
 
