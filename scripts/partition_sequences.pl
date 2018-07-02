@@ -8,7 +8,7 @@ use IO::Uncompress::Gunzip;
 use IO::Uncompress::Bunzip2;
 use FileHandle;
 
-my $usage = "Usage: $0 <Sequence File Name> <Partition Size> <Output Prefix>\n";
+my $usage = "Usage: $0 <Sequence File> <Partition Size> <Output Prefix>\n";
 
 die $usage unless (@ARGV == 3);
 
@@ -38,8 +38,8 @@ my $seqIO = new Bio::SeqIO (
 my $outputCounter = 0;
 my $sequenceCounter = 0;
 my $outIO = new Bio::SeqIO (
-  -file   => sprintf (">%s.%05d.%s", $outputPrefix, $outputCounter, $format),
-  -format => $format
+  -file   => sprintf (">%s.%05d.fa", $outputPrefix, $outputCounter),
+  -format => 'fasta'
 );
 
 while (my $seq = $seqIO->next_seq) {
@@ -48,8 +48,8 @@ while (my $seq = $seqIO->next_seq) {
     $outputCounter ++;
     $outIO->close ();
     $outIO = new Bio::SeqIO (
-      -file   => sprintf (">%s.%05d.%s", $outputPrefix, $outputCounter, $format),
-      -format => $format
+      -file   => sprintf (">%s.%05d.fa", $outputPrefix, $outputCounter),
+      -format => 'fasta'
     );
   }
   $outIO->write_seq ($seq);
