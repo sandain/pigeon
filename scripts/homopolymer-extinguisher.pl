@@ -52,7 +52,7 @@ sub bestAlign {
     foreach my $seq (@rawSeqs) {
       # Run each alignment in its own thread.
       my @align = align ($ref->id, $ref->seq, $seq);
-      if ($align[3] > $score) {
+      if (defined $align[3] && $align[3] > $score) {
         ($refID, $alignedRef, $alignedRaw, $score) = @align;
       }
     }
