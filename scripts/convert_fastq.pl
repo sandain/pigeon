@@ -15,19 +15,21 @@ if (@ARGV != 2) {
 # Grab the input and output file names.
 my ($inFile, $outFile) = @ARGV;
 
-# Handle input files that are compressed with gzip.
-if ($inFile =~ /\.t?gz/) {
-  $inFile = "gunzip -c $inFile |";
+# Handle sequence files that are compressed with gzip or bzip2.
+my $fh;
+if ($file =~ /\.t?gz/) {
+  $fh = new IO::Uncompress::Gunzip ($inFile);
 }
-
-# Handle input files that are compressed with bzip2.
-if ($inFile =~ /\.t?bz2?/) {
-  $inFile = "bunzip2 -c $inFile |";
+elsif ($file =~ /\.t?bz2/) {
+  $fh = new IO::Uncompress::Bunzip2 ($inFile);
+}
+else {
+  $fh = new FileHandle ($inFile);
 }
 
 # Determine the formats to use for the input and output files.
 my $outFormat = "fastq-sanger";
-my $inFormat = guessFormat ($inFile);
+my $inFormat = guessFormat ($fh);
 
 # Make sure that the input file format was detected.
 if (not defined $inFormat) {
@@ -36,7 +38,7 @@ if (not defined $inFormat) {
 
 # Create a SeqIO object for the input and output fastq files.
 my $inIO = new Bio::SeqIO (
-  -file   => $inFile,
+  -fh     => $fh,
   -format => $inFormat
 );
 my $outIO = new Bio::SeqIO (
@@ -63,14 +65,14 @@ $outIO->close;
 
 # Guess which language the fastq file uses (fastq-sanger, fastq-solexa, fastq-illumina).
 sub guessFormat {
-  my ($file) = @_;
+  my ($fh) = @_;
   my %format = (
     "fastq-sanger"   => 0,
     "fastq-illumina" => 0,
     "fastq-solexa"   => 0
   );
   # Open the input file.
-  open INPUT, $file or die "Unable to read from file $file: $!\n";
+  open $fh or die "Unable to read from file: $!\n";
   # Check the quality scores of each record in the file.
   my $inQuality = 0;
   while (my $line = <INPUT>) {
@@ -102,7 +104,7 @@ sub guessFormat {
     }
   }
   # Close the input file.
-  close INPUT;
+  close $fh;
   # Return the format type of the fastq file.
   return "fastq-solexa" if ($format{"fastq-solexa"} > 0);
   return "fastq-illumina" if ($format{"fastq-illumina"} > 0);
