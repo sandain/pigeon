@@ -5,6 +5,9 @@ use warnings;
 
 use Bio::Seq;
 use Bio::SeqIO;
+use IO::Uncompress::Gunzip;
+use IO::Uncompress::Bunzip2;
+use FileHandle;
 
 ## Check command line argument.
 if (@ARGV == 0) {
@@ -18,9 +21,21 @@ if (! -e $fastqFile) {
   die "Input file not found!\n";
 }
 
+# Handle sequence files that are compressed with gzip or bzip2.
+my $fh;
+if ($fastqFile =~ /\.t?gz/) {
+  $fh = new IO::Uncompress::Gunzip ($fastqFile);
+}
+elsif ($fastqFile =~ /\.t?bz2/) {
+  $fh = new IO::Uncompress::Bunzip2 ($fastqFile);
+}
+else {
+  $fh = new FileHandle ($fastqFile);
+}
+
 # Create a SeqIO object for the input fastq file.
 my $fastqIO = new Bio::SeqIO (
-  -file   => '<' . $fastqFile,
+  -fh   => $fh,
   -format => 'fastq'
 );
 
