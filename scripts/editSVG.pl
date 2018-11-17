@@ -86,12 +86,30 @@ foreach my $line (split /\n/, $input) {
   elsif ($line =~ /(.*)<path\s+(.*\s*)d=\"([\w\s\.\,\-]+)\"(.*)\/>/) {
     my @path;
     my $relative = 0;
-    foreach my $cmd (split /\s+/, $3) {
-      $relative = 1 if ($cmd =~ /[mlc]/);
-      $relative = 0 if ($cmd =~ /[MLC]/);
-      if ($cmd =~ /([\d\.\-]+),([\d\.\-]+)/ && ! $relative) {
-        my $x = $1 * $xScale + $xOffset;
-        my $y = $2 * $yScale + $yOffset;
+    my @cmds = split /\s+/, $3;
+    for (my $i = 0; $i < @cmds; $i ++) {
+      my $cmd = $cmds[$i];
+      if ($cmd =~ /[MLCmlc]/ && ! $relative) {
+        $relative = 1 if ($cmd =~ /[mlc]/);
+        $relative = 0 if ($cmd =~ /[MLC]/);
+        push @path, $cmd;
+        if ($cmd =~ /[Mm]/) {
+          $i ++;
+          $cmd = $cmds[$i];
+          if ($cmd =~ /([\d\.\-]+),([\d\.\-]+)/) {
+            my $x = $1 * $xScale;
+            my $y = $2 * $yScale;
+            $x += $xOffset;
+            $y += $yOffset;
+            push @path, $x . ',' . $y;
+          }
+        }
+      }
+      elsif ($cmd =~ /([\d\.\-]+),([\d\.\-]+)/) {
+        my $x = $1 * $xScale;
+        my $y = $2 * $yScale;
+        $x += $xOffset if (! $relative);
+        $y += $yOffset if (! $relative);
         push @path, $x . ',' . $y;
       }
       else {
