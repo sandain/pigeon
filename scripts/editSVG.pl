@@ -34,7 +34,7 @@ foreach my $line (split /\n/, $input) {
   # Add missing commas.
   $line =~ s/\s+(\-?\d+\.?\d*)\s+(\-?\d+\.?\d*)/ $1,$2/g;
   # Translate rgb colors to hex colors.
-  if ($line =~ /(.*)rgb\(([\d\.\%]+),([\d\.\%]+),([\d\.\%]+)\)(.*)/) {
+  while ($line =~ /(.*)rgb\(([\d\.\%]+),([\d\.\%]+),([\d\.\%]+)\)(.*)/) {
     my $before = $1;
     my $r = $2;
     my $g = $3;
