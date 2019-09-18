@@ -23,10 +23,14 @@ my $seqIO = new Bio::SeqIO (
   -format => $format
 );
 
+my %seqs;
 while (my $seq = $seqIO->next_seq) {
-  if ($seq->id ~~ @identifiers) {
-    print '>' . $seq->id;
-    print ' ' . $seq->description if ($seq->description ne '');
-    print "\n" . $seq->seq . "\n";
-  }
+  $seqs{$seq->id} = $seq if ($seq->id ~~ @identifiers);
+}
+
+for my $id (@identifiers) {
+  next unless (defined $seqs{$id});
+  print '>' . $id;
+  print ' ' . $seqs{$id}->description if ($seqs{$id}->description ne '');
+  print "\n" . $seqs{$id}->seq . "\n";
 }
