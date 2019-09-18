@@ -17,9 +17,10 @@ if (@ARGV == 0) {
 my ($fastqFile, $fastaFile, $desc) = @ARGV;
 
 # Make sure the input fastq file exists.
-if (! -e $fastqFile) {
-  die "Input file not found!\n";
-}
+die "Input file not found!\n" unless (-e $fastqFile);
+
+# Make sure the output fasta file was provided.
+die "Output file not provided!\n" unless (defined $fastaFile && $fastaFile ne '');
 
 # Handle sequence files that are compressed with gzip or bzip2.
 my $fh;
