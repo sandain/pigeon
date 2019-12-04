@@ -27,7 +27,7 @@ $cutoff = 0 if (not defined $cutoff);
 # Handle sequence files that are compressed with gzip or bzip2.
 my $fh;
 if ($file =~ /\.t?gz/) {
-  $fh = new IO::Uncompress::Gunzip ($file);
+  $fh = new IO::Uncompress::Gunzip ($file, -MultiStream => 1);
 }
 elsif ($file =~ /\.t?bz2/) {
   $fh = new IO::Uncompress::Bunzip2 ($file);
