@@ -24,6 +24,7 @@ my $seqIO = new Bio::SeqIO (
   -format => $format
 );
 
+my %seqs;
 while (my $seq = $seqIO->next_seq) {
   if (defined $identifiers{$seq->id}) {
     print '>' . $seq->id;
