@@ -50,10 +50,21 @@ sub transform {
     my $y = scale ($2, $yOffset, $yScale);
     $transform = sprintf "rotate(-90 %s,%s)", $x, $y;
   }
-  elsif ($transform =~ /rotate\(([-\d]+) ([\d\.]+)[\s,]+([\d\.]+)\)/) {
+  elsif ($transform =~ /rotate\(([-\d\.]+) ([-\d\.]+)[\s,]+([-\d\.]+)\)/) {
     my $x = scale ($2, $xOffset, $xScale);
     my $y = scale ($3, $yOffset, $yScale);
     $transform = sprintf "rotate(%s %s,%s)", $1, $x, $y;
+  }
+  elsif ($transform =~ /matrix\(([-\d\.]+)[\s,]+([-\d\.]+)[\s,]+([-\d\.]+)[\s,]+([-\d\.]+)[\s,]+([-\d\.]+)[\s,]+([-\d\.]+)\)/) {
+    my $tx = scale ($5, $xOffset, $xScale);
+    my $ty = scale ($6, $yOffset, $yScale);
+    my $sx = ($1 > 0 ? 1 : -1) * sqrt ($1 ** 2 + $2 ** 2) * $xScale;
+    my $sy = ($4 > 0 ? 1 : -1) * sqrt ($3 ** 2 + $4 ** 2) * $yScale;
+    my $a = atan2 ($2, $3);
+    $transform = '';
+    $transform .= sprintf " translate(%s,%s)", $tx, $ty if ($tx != 0 && $ty != 0);
+    $transform .= sprintf " scale(%s,%s)", $sx, $sy if ($sx != 1 && $sy != 1);
+    $transform .= sprintf " rotate(%s %s,%s)", $a, $tx, $ty if ($a != 0);
   }
   return $transform;
 }
