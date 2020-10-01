@@ -32,7 +32,7 @@ sub color {
   given ($color) {
     when (/rgb\(([\d\.\%]+),([\d\.\%]+),([\d\.\%]+)\)/) {
       my ($r, $g, $b) = ($1, $2, $3);
-      # Check for percantages and convert to an int.
+      # Check for percentages and convert to an int.
       if ($r =~ /([\d\.]+)\%/) { $r = int ($1 / 100 * 255 + 0.5); }
       if ($g =~ /([\d\.]+)\%/) { $g = int ($1 / 100 * 255 + 0.5); }
       if ($b =~ /([\d\.]+)\%/) { $b = int ($1 / 100 * 255 + 0.5); }
@@ -241,9 +241,6 @@ sub outputTextNode {
   my ($node) = @_;
   return unless ($node->nodeType == XML_TEXT_NODE);
   my $text = $node->data;
-  # Remove extra whitespace.
-  $text =~ s/^\s+//;
-  $text =~ s/[\r\n]+//g;
   # Swap entities with html codes to avoid malformed xml.
   foreach my $entity (keys %entities) {
     $text =~ s/$entity/$entities{$entity}/g;
