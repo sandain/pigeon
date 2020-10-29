@@ -98,9 +98,9 @@ printf "Mean length: %.1f\n", $meanLength;
 printf "N80: %d\n", $n80;
 printf "N50: %d\n", $n50;
 printf "N20: %d\n", $n20;
+printf "G+C: %.2f%%\n", $nucCounter > 0 ? 100 * ($counter{'G'} + $counter{'C'}) / $nucCounter : 0;
 
-foreach my $char (keys %counter) {
-  my $charCounter = 0;
-  $charCounter = ($counter{$char} / $nucCounter) if ($nucCounter > 0);
+foreach my $char (sort keys %counter) {
+  my $charCounter = $nucCounter > 0 ? $counter{$char} / $nucCounter : 0;
   printf "%s\t%d/%d\t%.3f\n", $char, $counter{$char}, $nucCounter, $charCounter;
 }
