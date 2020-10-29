@@ -30,7 +30,7 @@ $yScale = 1 if (not defined $yScale);
 sub color {
   my ($color) = @_;
   given ($color) {
-    when (/rgb\(([\d\.\%]+),([\d\.\%]+),([\d\.\%]+)\)/) {
+    when (/rgb\(([\d\.\%]+),\s*([\d\.\%]+),\s*([\d\.\%]+)\)/) {
       my ($r, $g, $b) = ($1, $2, $3);
       # Check for percentages and convert to an int.
       if ($r =~ /([\d\.]+)\%/) { $r = int ($1 / 100 * 255 + 0.5); }
@@ -101,7 +101,7 @@ sub path {
 sub scale {
   my ($value, $offset, $scale) = @_;
   my $unit = '';
-  if ($value =~ /(\d+)([a-zA-Z\%]+)/) {
+  if ($value =~ /([\d\.]+)([a-zA-Z\%]+)/) {
     $value = $1;
     $unit = $2;
   }
@@ -241,6 +241,7 @@ sub outputTextNode {
   my ($node) = @_;
   return unless ($node->nodeType == XML_TEXT_NODE);
   my $text = $node->data;
+  return if ($text =~ /^\s+$/);
   # Swap entities with html codes to avoid malformed xml.
   foreach my $entity (keys %entities) {
     $text =~ s/$entity/$entities{$entity}/g;
