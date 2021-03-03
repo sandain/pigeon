@@ -91,15 +91,17 @@ else {
 }
 my $meanLength = $nucCounter / $numSequences;
 
-my ($n80, $n50, $n20);
+my ($n90, $n80, $n50, $n20, $n10);
 my $totalLength = 0;
 # n50 is a weighted median statistic such that 50% of the entire assembly is contained in
 # contigs or scaffolds equal to or larger than this value
 for (my $i = 0; $i < $numSequences; $i ++) {
   $totalLength += $lengths[$i];
+  $n90 = $lengths[$i] if (not defined $n90 and $totalLength >= (1.0 - 0.9) * $nucCounter);
   $n80 = $lengths[$i] if (not defined $n80 and $totalLength >= (1.0 - 0.8) * $nucCounter);
   $n50 = $lengths[$i] if (not defined $n50 and $totalLength >= (1.0 - 0.5) * $nucCounter);
   $n20 = $lengths[$i] if (not defined $n20 and $totalLength >= (1.0 - 0.2) * $nucCounter);
+  $n10 = $lengths[$i] if (not defined $n10 and $totalLength >= (1.0 - 0.1) * $nucCounter);
 }
 
 printf "File: %s\n", $file;
@@ -109,9 +111,11 @@ printf "Min length: %d\n", $minLength;
 printf "Max length: %d\n", $maxLength;
 printf "Median length: %.1f\n", $medianLength;
 printf "Mean length: %.1f\n", $meanLength;
+printf "N90: %d\n", $n90;
 printf "N80: %d\n", $n80;
 printf "N50: %d\n", $n50;
 printf "N20: %d\n", $n20;
+printf "N10: %d\n", $n10;
 printf "G+C: %.2f%%\n", $nucCounter > 0 ? 100 * ($counter{'G'} + $counter{'C'}) / $nucCounter : 0;
 
 foreach my $char (sort keys %counter) {
