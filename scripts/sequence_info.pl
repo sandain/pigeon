@@ -9,6 +9,7 @@ use Bio::SeqIO;
 use IO::Uncompress::Gunzip;
 use IO::Uncompress::Bunzip2;
 use FileHandle;
+use Parallel::ForkManager;
 
 sub round {
   my $number = shift;
@@ -50,17 +51,31 @@ my $nucCounter = 0;
 
 my @lengths;
 
+my $pm = Parallel::ForkManager->new (16);
+
+$pm->run_on_finish( sub {
+  my ($pid, $exit_code, $ident, $exit_signal, $core_dump, $data) = @_;
+  if ($data->{length} >= $cutoff) {
+    push @lengths, $data->{length};
+    $nucCounter += $data->{length};
+    foreach my $char (keys %{$data->{chars}}) {
+      $counter{$char} += $data->{chars}{$char};
+    }
+  }
+});
+
 while (my $seq = $seqIO->next_seq) {
+  $pm->start and next;
   my $sequence = uc $seq->seq;
   my $length = length $sequence;
-  next if ($length < $cutoff);
-  push @lengths, $length;
-  $nucCounter += $length;
+  my $chars;
   for (my $i = 0; $i < $length; $i ++) {
     my $char = substr $sequence, $i, 1;
-    $counter{$char} ++;
+    $chars->{$char} ++;
   }
+  $pm->finish (0, { length => $length, chars => $chars });
 }
+$pm->wait_all_children;
 
 @lengths = sort { $a <=> $b } @lengths;
 
@@ -75,7 +90,6 @@ else {
   $medianLength = 0.5 * ($lengths[floor ($numSequences / 2)] + $lengths[ceil ($numSequences / 2)]);
 }
 my $meanLength = $nucCounter / $numSequences;
-
 
 my ($n80, $n50, $n20);
 my $totalLength = 0;
