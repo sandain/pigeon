@@ -78,10 +78,11 @@ sub path {
   $path =~ s/\s+(\-?\d+\.?\d*)\s+(\-?\d+\.?\d*)/ $1,$2/g;
   my @path;
   my $relative = 0;
+  my $first = 1;
   foreach my $cmd (split /\s+/, $path) {
     $relative = 1 if ($cmd =~ /[mlc]/);
     $relative = 0 if ($cmd =~ /[MLC]/);
-    if ($cmd =~ /([\d\.\-]+),([\d\.\-]+)/ && ! $relative) {
+    if ($cmd =~ /([\d\.\-]+),([\d\.\-]+)/ && ($first || ! $relative)) {
       my $x = scale ($1, $xOffset, $xScale);
       my $y = scale ($2, $yOffset, $yScale);
       push @path, $x . ',' . $y;
@@ -94,6 +95,7 @@ sub path {
     else {
       push @path, $cmd;
     }
+    $first = 0 unless ($cmd =~ /[m]/);
   }
   return join ' ', @path;
 }
