@@ -103,6 +103,7 @@ sub path {
 sub scale {
   my ($value, $offset, $scale) = @_;
   my $unit = '';
+  return $value unless ($value =~ /\d+/);
   if ($value =~ /([\d\.]+)([a-zA-Z\%]+)/) {
     $value = $1;
     $unit = $2;
