@@ -75,6 +75,7 @@ sub path {
   $path =~ s/([mlcvhMLCVH])/ $1 /g;
   $path =~ s/(\d)-/$1 -/g;
   $path =~ s/^\s+([mM])/$1/;
+  $path =~ s/([zZ])\s+$/$1/;
   # Add missing commas.
   $path =~ s/\s+(\-?\d+\.?\d*)\s+(\-?\d+\.?\d*)/ $1,$2/g;
   my @path;
