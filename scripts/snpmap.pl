@@ -8,6 +8,8 @@ use Number::Format 'format_number';
 
 my $usage = "Usage: $0 <Fasta or Fastq Input File> <Output SVG File> <Title, optional>\n";
 
+my @colors = ('#648FFF', '#785EF0', '#DC267F', '#FE6100', '#FFB000', '#AAAAAA');
+
 my %codon_table = (
   'TTT' => 'Phe',   'TCT' => 'Ser',   'TAT' => 'Tyr',   'TGT' => 'Cys',
   'TTC' => 'Phe',   'TCC' => 'Ser',   'TAC' => 'Tyr',   'TGC' => 'Cys',
@@ -28,31 +30,32 @@ my %codon_table = (
 );
 
 my %dna_colors = (
-  'synonymous'    => '#777777',
-  'nonsynonymous' => '#000000'
+  'synonymous'    => $colors[0],
+  'nonsynonymous' => $colors[2],
+  'unknown'       => $colors[5]
 );
 
 my %aa_colors = (
-  'A' => '#FFA500', # Nonpolar
-  'G' => '#FFA500', # Nonpolar
-  'I' => '#FFA500', # Nonpolar
-  'L' => '#FFA500', # Nonpolar
-  'M' => '#FFA500', # Nonpolar
-  'P' => '#FFA500', # Nonpolar
-  'V' => '#FFA500', # Nonpolar
-  'C' => '#00FF00', # Polar
-  'N' => '#00FF00', # Polar
-  'Q' => '#00FF00', # Polar
-  'S' => '#00FF00', # Polar
-  'T' => '#00FF00', # Polar
-  'D' => '#FF0000', # Acidic
-  'E' => '#FF0000', # Acidic
-  'H' => '#0000FF', # Basic
-  'K' => '#0000FF', # Basic
-  'R' => '#0000FF', # Basic
-  'F' => '#FFFF00', # Aromatic
-  'W' => '#FFFF00', # Aromatic
-  'Y' => '#FFFF00'  # Aromatic
+  'A' => $colors[0], # Nonpolar
+  'G' => $colors[0], # Nonpolar
+  'I' => $colors[0], # Nonpolar
+  'L' => $colors[0], # Nonpolar
+  'M' => $colors[0], # Nonpolar
+  'P' => $colors[0], # Nonpolar
+  'V' => $colors[0], # Nonpolar
+  'C' => $colors[1], # Polar
+  'N' => $colors[1], # Polar
+  'Q' => $colors[1], # Polar
+  'S' => $colors[1], # Polar
+  'T' => $colors[1], # Polar
+  'D' => $colors[2], # Acidic
+  'E' => $colors[2], # Acidic
+  'H' => $colors[3], # Basic
+  'K' => $colors[3], # Basic
+  'R' => $colors[3], # Basic
+  'F' => $colors[4], # Aromatic
+  'W' => $colors[4], # Aromatic
+  'Y' => $colors[4]  # Aromatic
 );
 
 die $usage unless (@ARGV >= 2);
@@ -70,15 +73,20 @@ my $seqIO = new Bio::SeqIO (
 die "File not found!\n" . $usage unless (-e $input);
 
 my @seqs;
+my $ref_id;
 my $ref_seq;
 my $alphabet;
+my $max_id_length = 0;
 while (my $seq = $seqIO->next_seq) {
   unless (defined $ref_seq) {
+    $ref_id = $seq->id;
     $ref_seq = $seq->seq;
     $alphabet = $seq->alphabet;
     next;
   }
   push @seqs, $seq;
+  my $id_length = length ($seq->id);
+  $max_id_length = $id_length if ($id_length > $max_id_length);
 }
 $seqIO->close;
 
@@ -102,7 +110,7 @@ my $height = 75 + 25 * @seqs;
 my $width = 1500;
 
 # Calculate the plot area in the image.
-my $xmin = 100;
+my $xmin = 9 * $max_id_length + 10;
 my $xmax = $width - 10;
 my $ymin = 50;
 
@@ -124,8 +132,10 @@ printf $svg "<path d=\"M %d,%d L %d,%d\" stroke=\"#000000\"/>\n", $xmax, $ymin -
 printf $svg "<path d=\"M %d,%d L %d,%d\" stroke=\"#000000\"/>\n", 0.25 * ($xmax - $xmin) + $xmin, $ymin - 25, 0.25 * ($xmax - $xmin) + $xmin, $ymin - 15;
 printf $svg "<path d=\"M %d,%d L %d,%d\" stroke=\"#000000\"/>\n", 0.50 * ($xmax - $xmin) + $xmin, $ymin - 25, 0.50 * ($xmax - $xmin) + $xmin, $ymin - 15;
 printf $svg "<path d=\"M %d,%d L %d,%d\" stroke=\"#000000\"/>\n", 0.75 * ($xmax - $xmin) + $xmin, $ymin - 25, 0.75 * ($xmax - $xmin) + $xmin, $ymin - 15;
+printf $svg "<text x=\"%d\" y=\"%d\" dominant-baseline=\"middle\" text-anchor=\"end\" font-size=\"15px\">%s</text>\n", $xmin - 10, $ymin - 25, $ref_id;
 printf $svg "<text x=\"%d\" y=\"%d\" text-anchor=\"start\" font-size=\"15px\">%s</text>\n", $xmin, $ymin - 25, 0;
 printf $svg "<text x=\"%d\" y=\"%d\" text-anchor=\"end\" font-size=\"15px\">%s</text>\n", $xmax, $ymin - 25, format_number length $ref_seq;
+my $unknown = 0;
 for (my $i = 0; $i < @seqs; $i ++) {
   my $id = $seqs[$i]->id;
   my $y = $ymin + 25 * $i;
@@ -135,10 +145,16 @@ for (my $i = 0; $i < @seqs; $i ++) {
     my $cx = $xmin + ($snp * ($xmax - $xmin)) / length $ref_seq;
     my $color;
     if ($alphabet eq 'dna') {
-      $color = $dna_colors{'synonymous'};
       my $codon = uc substr $seqs[$i]->seq, codon_start($snp), 3;
       my $ref_codon = uc substr $ref_seq, codon_start($snp), 3;
-      $color = $dna_colors{'nonsynonymous'} unless ($codon_table{$ref_codon} eq $codon_table{$codon});
+      if (defined $codon_table{$ref_codon} and defined $codon_table{$codon}) {
+        $color = $dna_colors{'synonymous'};
+        $color = $dna_colors{'nonsynonymous'} unless ($codon_table{$ref_codon} eq $codon_table{$codon});
+      }
+      else {
+        $color = $dna_colors{'unknown'};
+        $unknown++;
+      }
     }
     else {
       my $aa = uc substr $seqs[$i]->seq, $snp, 1;
@@ -153,10 +169,14 @@ for (my $i = 0; $i < @seqs; $i ++) {
 # Plot the legend.
 my $ylegend = $ymin + 25 * (@seqs + 0.5);
 if ($alphabet eq 'dna') {
-  printf $svg "<circle cx=\"%d\" cy=\"%d\" r=\"5\" fill=\"%s\"/>\n", $xmin + 0.5 * ($xmax - $xmin) - 240, $ylegend, $dna_colors{'synonymous'};
-  printf $svg "<text x=\"%d\" y=\"%d\" dominant-baseline=\"middle\">Synonymous Mutation</text>\n", $xmin + 0.5 * ($xmax - $xmin) - 230, $ylegend;
-  printf $svg "<circle cx=\"%d\" cy=\"%d\" r=\"5\" fill=\"%s\"/>\n", $xmin + 0.5 * ($xmax - $xmin) + 70, $ylegend, $dna_colors{'nonsynonymous'};
-  printf $svg "<text x=\"%d\" y=\"%d\" dominant-baseline=\"middle\">Nonsynonymous Mutation</text>\n", $xmin + 0.5 * ($xmax - $xmin) + 80, $ylegend;
+  printf $svg "<circle cx=\"%d\" cy=\"%d\" r=\"5\" fill=\"%s\"/>\n", $xmin + 0.25 * ($xmax - $xmin), $ylegend, $dna_colors{'synonymous'};
+  printf $svg "<text x=\"%d\" y=\"%d\" dominant-baseline=\"middle\">Synonymous Mutation</text>\n", $xmin + 0.25 * ($xmax - $xmin) + 10, $ylegend;
+  printf $svg "<circle cx=\"%d\" cy=\"%d\" r=\"5\" fill=\"%s\"/>\n", $xmin + 0.50 * ($xmax - $xmin), $ylegend, $dna_colors{'nonsynonymous'};
+  printf $svg "<text x=\"%d\" y=\"%d\" dominant-baseline=\"middle\">Nonsynonymous Mutation</text>\n", $xmin + 0.50 * ($xmax - $xmin) + 10, $ylegend;
+  if ($unknown > 0) {
+    printf $svg "<circle cx=\"%d\" cy=\"%d\" r=\"5\" fill=\"%s\"/>\n", $xmin + 0.75 * ($xmax - $xmin), $ylegend, $dna_colors{'unknown'};
+    printf $svg "<text x=\"%d\" y=\"%d\" dominant-baseline=\"middle\">Unknown</text>\n", $xmin + 0.75 * ($xmax - $xmin) + 10, $ylegend;
+  }
 }
 else {
   printf $svg "<circle cx=\"%d\" cy=\"%d\" r=\"5\" fill=\"%s\"/>\n", $xmin + 0.5 * ($xmax - $xmin) - 400, $ylegend, $aa_colors{'F'};
