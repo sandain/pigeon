@@ -133,7 +133,7 @@ printf $svg "<path d=\"M %d,%d L %d,%d\" stroke=\"#000000\"/>\n", 0.25 * ($xmax 
 printf $svg "<path d=\"M %d,%d L %d,%d\" stroke=\"#000000\"/>\n", 0.50 * ($xmax - $xmin) + $xmin, $ymin - 25, 0.50 * ($xmax - $xmin) + $xmin, $ymin - 15;
 printf $svg "<path d=\"M %d,%d L %d,%d\" stroke=\"#000000\"/>\n", 0.75 * ($xmax - $xmin) + $xmin, $ymin - 25, 0.75 * ($xmax - $xmin) + $xmin, $ymin - 15;
 printf $svg "<text x=\"%d\" y=\"%d\" dominant-baseline=\"middle\" text-anchor=\"end\" font-size=\"15px\">%s</text>\n", $xmin - 10, $ymin - 25, $ref_id;
-printf $svg "<text x=\"%d\" y=\"%d\" text-anchor=\"start\" font-size=\"15px\">%s</text>\n", $xmin, $ymin - 25, 0;
+printf $svg "<text x=\"%d\" y=\"%d\" text-anchor=\"start\" font-size=\"15px\">%s</text>\n", $xmin, $ymin - 25, 1;
 printf $svg "<text x=\"%d\" y=\"%d\" text-anchor=\"end\" font-size=\"15px\">%s</text>\n", $xmax, $ymin - 25, format_number length $ref_seq;
 my $unknown = 0;
 for (my $i = 0; $i < @seqs; $i ++) {
