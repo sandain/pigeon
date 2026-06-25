@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 use strict;
 use warnings;
@@ -16,42 +16,50 @@ sub round {
   return int ($number + .5 * ($number <=> 0));
 }
 
-my $usage = "Usage: $0 <sequence file> <cutoff>\n";
+my $usage = "Usage: $0 <sequence data> <cutoff> <threads>\n";
 
 die $usage unless (@ARGV >= 1);
 
 my $file = $ARGV[0];
 my $cutoff = $ARGV[1];
+my $threads = $ARGV[2];
 
-$cutoff = 0 if (not defined $cutoff);
+$cutoff = 0 unless (defined $cutoff);
+$threads = 16 unless (defined $threads);
 
-# Handle sequence files that are compressed with gzip or bzip2.
+# Create a file handle to use. Look for gzip or bzip2 compressed files and
+# use IO::Uncompress to create the file handle. Use FileHandle for normal text
+# files. If - is provided for the file name, read from STDIN.
 my $fh;
-if ($file =~ /\.t?gz/) {
+if ($file eq '-' && ! -f $file) {
+  # Sequence data is provided via STDIN.
+  $fh = \*STDIN;
+}
+elsif ($file =~ /\.t?gz/ && -f $file) {
+  # Sequence data appears to be compressed with gzip.
   $fh = new IO::Uncompress::Gunzip ($file, -MultiStream => 1);
 }
-elsif ($file =~ /\.t?bz2/) {
+elsif ($file =~ /\.t?bz2/ && -f $file) {
+  # Sequence data appears to be compressed with bzip2.
   $fh = new IO::Uncompress::Bunzip2 ($file);
 }
-else {
+elsif (-f $file) {
+  # Sequence data is provided by a file.
   $fh = new FileHandle ($file);
 }
+else {
+  # File not found.
+  die "File $file not found!";
+}
 
-# Attempt to detect the format of the sequence file.
-my $format = "fasta";
-$format = "fastq" if ($file =~ /fastq/);
-
-my $seqIO = new Bio::SeqIO (
-  -fh   => $fh,
-  -format => $format
-);
+my $seqIO = new Bio::SeqIO (-fh => $fh);
 
 my %counter;
 my $nucCounter = 0;
 
 my @lengths;
 
-my $pm = Parallel::ForkManager->new (16);
+my $pm = Parallel::ForkManager->new ($threads);
 
 $pm->run_on_finish( sub {
   my ($pid, $exit_code, $ident, $exit_signal, $core_dump, $data) = @_;
