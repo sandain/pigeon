@@ -47,7 +47,7 @@ while (my $seq = $dbIO->next_seq) {
   elsif ($seq->desc =~ /barcode=(\S+)/) {
     $barcode = $1;
   }
-  elsif ($seq->id =~ /^([a-zA-Z_0-9-]+)::.*/) {
+  elsif ($seq->id =~ /^(\S+)::.*/) {
     $barcode = $1;
   }
   push @barcodes, $barcode if (not $barcode ~~ @barcodes);
